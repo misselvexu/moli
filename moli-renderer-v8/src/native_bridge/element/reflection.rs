@@ -903,7 +903,11 @@ impl_reflection_callback_data!(UsvStringReflection);
 #[derive(Clone, Copy)]
 #[repr(u32)]
 pub(super) enum NullToEmptyDomStringReflection {
+    BodyALink,
     BodyBgColor,
+    BodyLink,
+    BodyText,
+    BodyVLink,
     FontColor,
     FrameMarginHeight,
     FrameMarginWidth,
@@ -924,8 +928,24 @@ const NULL_TO_EMPTY_DOM_STRING_REFLECTION_DESCRIPTORS: &[(
     ReflectedAttributeDescriptor,
 )] = &[
     (
+        NullToEmptyDomStringReflection::BodyALink,
+        ReflectedAttributeDescriptor::new_html_element("HTMLBodyElement", "body", "alink", "aLink"),
+    ),
+    (
         NullToEmptyDomStringReflection::BodyBgColor,
         ReflectedAttributeDescriptor::new("HTMLBodyElement", "bgcolor", "bgColor"),
+    ),
+    (
+        NullToEmptyDomStringReflection::BodyLink,
+        ReflectedAttributeDescriptor::new_html_element("HTMLBodyElement", "body", "link", "link"),
+    ),
+    (
+        NullToEmptyDomStringReflection::BodyText,
+        ReflectedAttributeDescriptor::new_html_element("HTMLBodyElement", "body", "text", "text"),
+    ),
+    (
+        NullToEmptyDomStringReflection::BodyVLink,
+        ReflectedAttributeDescriptor::new_html_element("HTMLBodyElement", "body", "vlink", "vLink"),
     ),
     (
         NullToEmptyDomStringReflection::FontColor,
@@ -1135,7 +1155,7 @@ impl CrossOriginReflection {
 
 impl_reflection_callback_data!(CrossOriginReflection);
 
-pub(super) fn set_reflected_attribute(
+pub(in crate::native_bridge) fn set_reflected_attribute(
     scope: &mut v8::PinScope<'_, '_>,
     runtime_ptr: *mut super::super::JsContextHost,
     handle: DomHandle,
