@@ -194,6 +194,7 @@ pub(super) enum DomStringReflection {
     HrWidth,
     HtmlTimeDateTime,
     HtmlVersion,
+    IframeAllow,
     IframeCsp,
     IframeFrameBorder,
     IframeHeight,
@@ -459,6 +460,10 @@ const DOM_STRING_REFLECTION_DESCRIPTORS: &[(DomStringReflection, DomStringReflec
         (
             DomStringReflection::HtmlVersion,
             DomStringReflectionDescriptor::new("HTMLHtmlElement", "version", "version"),
+        ),
+        (
+            DomStringReflection::IframeAllow,
+            DomStringReflectionDescriptor::new("HTMLIFrameElement", "allow", "allow"),
         ),
         (
             DomStringReflection::IframeCsp,
