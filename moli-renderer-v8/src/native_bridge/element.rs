@@ -3334,7 +3334,7 @@ fn iframe_srcdoc_setter_function<'s>(
     rv.set_undefined();
 }
 
-fn iframe_content_document_getter_function<'s>(
+fn frame_owner_content_document_getter_function<'s>(
     scope: &mut v8::PinScope<'s, '_>,
     args: v8::FunctionCallbackArguments<'s>,
     mut rv: v8::ReturnValue<'_, v8::Value>,
@@ -3401,7 +3401,7 @@ fn iframe_content_document_getter_function<'s>(
     }
 }
 
-fn iframe_content_window_getter_function<'s>(
+fn frame_owner_content_window_getter_function<'s>(
     scope: &mut v8::PinScope<'s, '_>,
     args: v8::FunctionCallbackArguments<'s>,
     mut rv: v8::ReturnValue<'_, v8::Value>,
@@ -4086,9 +4086,15 @@ struct HtmlIFrameElementPrototypeDeclaration {
         setter_data = NullToEmptyDomStringReflection::IframeMarginWidth
     )]
     margin_width: (),
-    #[webapi(accessor_property, getter = iframe_content_document_getter_function)]
+    #[webapi(
+        accessor_property,
+        getter = frame_owner_content_document_getter_function
+    )]
     content_document: (),
-    #[webapi(accessor_property, getter = iframe_content_window_getter_function)]
+    #[webapi(
+        accessor_property,
+        getter = frame_owner_content_window_getter_function
+    )]
     content_window: (),
 }
 
@@ -5396,6 +5402,16 @@ struct HtmlObjectElementPrototypeDeclaration {
         setter_data = DomStringReflection::ObjectHeight
     )]
     height: (),
+    #[webapi(
+        accessor_property,
+        getter = frame_owner_content_document_getter_function
+    )]
+    content_document: (),
+    #[webapi(
+        accessor_property,
+        getter = frame_owner_content_window_getter_function
+    )]
+    content_window: (),
     #[webapi(
         accessor_property,
         getter = html_border_getter_function,
