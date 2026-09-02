@@ -2,6 +2,9 @@ css/selectors/invalidation/has-complexity.html
 dom/ranges/Range-insertNode.html
 dom/ranges/Range-mutations-dataChange.html
 dom/ranges/Range-surroundContents.html
+editing/run/delete.html?1-1000
+encoding/legacy-mb-tchinese/big5/big5-decode.html?5001-6000
+html/select/options-length-too-large.html
 html/semantics/embedded-content/the-iframe-element/iframe_sandbox_block_modals-1.html
 html/semantics/embedded-content/the-iframe-element/iframe_sandbox_block_modals-2.html
 html/semantics/embedded-content/the-iframe-element/iframe_sandbox_block_modals-3.html
