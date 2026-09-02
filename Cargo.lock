@@ -2874,6 +2874,7 @@ dependencies = [
  "data-url",
  "encoding_rs",
  "euclid",
+ "fastrand",
  "flate2",
  "futures-util",
  "html-escape",
