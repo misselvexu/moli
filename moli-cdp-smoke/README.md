@@ -158,6 +158,20 @@ workers can partition that selected list with the one-based
 
 The current suite is a strong core smoke gate, not a complete Playwright compatibility suite.
 
+The default `target-lifecycle` process group locks down Moli's resource lifetime,
+not a Chromium-specific FD count. In one server it closes 800 default-context
+targets with `Target.closeTarget`, 800 with `Page.close`, 128 after detaching,
+and 64 by disposing explicit contexts. Foreground/background creation alternates.
+It waits for each exact `Target.targetDestroyed`, records Linux `/proc/<pid>/fd`
+and thread counts every batch, and checks a fixed post-warmup resource budget.
+Each phase must still load a real HTTP document and preserve a live peer Page.
+This catches closed renderer wakers retaining Tokio I/O drivers without changing
+the test to use a fresh context for each default-context Page. Batch progress,
+resource samples, and the usual server logs are retained on failure. With an
+external endpoint or on non-Linux systems, protocol churn/navigation still run;
+the artifact explicitly reports that FD sampling was unavailable. CI uses the
+managed Linux server, so the resource assertions are mandatory there.
+
 The default `webgl-viewport` group was calibrated on 2026-09-07 against
 Debian `/usr/bin/chromium` 145.0.7632.116. It uses the same fixture as the
 renderer tests to check WebGL1/2 on HTML and
