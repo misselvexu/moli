@@ -8,6 +8,7 @@ use url::Url;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DocumentPermissionsPolicy {
     fullscreen: bool,
+    gamepad: bool,
     synchronous_xhr: bool,
 }
 
@@ -15,6 +16,7 @@ impl Default for DocumentPermissionsPolicy {
     fn default() -> Self {
         Self {
             fullscreen: true,
+            gamepad: true,
             synchronous_xhr: true,
         }
     }
@@ -29,9 +31,14 @@ impl DocumentPermissionsPolicy {
         self.synchronous_xhr
     }
 
+    pub(crate) const fn gamepad_enabled(self) -> bool {
+        self.gamepad
+    }
+
     pub(crate) const fn intersect(self, other: Self) -> Self {
         Self {
             fullscreen: self.fullscreen && other.fullscreen,
+            gamepad: self.gamepad && other.gamepad,
             synchronous_xhr: self.synchronous_xhr && other.synchronous_xhr,
         }
     }
@@ -52,6 +59,8 @@ impl DocumentPermissionsPolicy {
                 let allowed = response_allowlist_allows_document(allowlist, document_url);
                 if feature.trim().eq_ignore_ascii_case("fullscreen") {
                     policy.fullscreen = allowed;
+                } else if feature.trim().eq_ignore_ascii_case("gamepad") {
+                    policy.gamepad = allowed;
                 } else if feature.trim().eq_ignore_ascii_case("sync-xhr") {
                     policy.synchronous_xhr = allowed;
                 }
@@ -85,8 +94,17 @@ impl DocumentPermissionsPolicy {
             same_origin,
         )
         .unwrap_or(same_origin);
+        let gamepad = iframe_allow_feature(
+            allow_attribute,
+            "gamepad",
+            parent_url,
+            child_url,
+            same_origin,
+        )
+        .unwrap_or(true);
         Self {
             fullscreen: self.fullscreen && fullscreen,
+            gamepad: self.gamepad && gamepad,
             synchronous_xhr: self.synchronous_xhr && synchronous_xhr,
         }
     }
@@ -176,11 +194,12 @@ mod tests {
         let policy = DocumentPermissionsPolicy::from_navigation_response_headers(
             &[(
                 "permissions-policy".to_owned(),
-                "fullscreen=(), sync-xhr=()".to_owned(),
+                "fullscreen=(), gamepad=(), sync-xhr=()".to_owned(),
             )],
             &url("https://example.test/document"),
         );
         assert!(!policy.fullscreen_enabled());
+        assert!(!policy.gamepad_enabled());
         assert!(!policy.synchronous_xhr_enabled());
     }
 
@@ -193,20 +212,23 @@ mod tests {
 
         let same = policy.delegated_to_child(&parent, &same_origin, false, None, false);
         assert!(same.fullscreen_enabled());
+        assert!(same.gamepad_enabled());
         assert!(same.synchronous_xhr_enabled());
 
         let denied = policy.delegated_to_child(&parent, &cross_origin, false, None, false);
         assert!(!denied.fullscreen_enabled());
+        assert!(denied.gamepad_enabled());
         assert!(!denied.synchronous_xhr_enabled());
 
         let delegated = policy.delegated_to_child(
             &parent,
             &cross_origin,
             false,
-            Some("payment; fullscreen"),
+            Some("payment; fullscreen; gamepad *"),
             false,
         );
         assert!(delegated.fullscreen_enabled());
+        assert!(delegated.gamepad_enabled());
         assert!(!delegated.synchronous_xhr_enabled());
     }
 
@@ -225,16 +247,18 @@ mod tests {
 
         let parent_denied = DocumentPermissionsPolicy {
             fullscreen: false,
+            gamepad: false,
             synchronous_xhr: false,
         };
         let delegated = parent_denied.delegated_to_child(
             &parent,
             &url("https://other.test/child"),
             false,
-            Some("fullscreen *; sync-xhr *"),
+            Some("fullscreen *; gamepad *; sync-xhr *"),
             true,
         );
         assert!(!delegated.fullscreen_enabled());
+        assert!(!delegated.gamepad_enabled());
         assert!(!delegated.synchronous_xhr_enabled());
     }
 }

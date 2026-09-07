@@ -14,6 +14,7 @@ mod details;
 mod event_handlers;
 mod events_selection_storage;
 mod fullscreen;
+mod gamepad;
 mod ice_candidate;
 mod idle_callbacks;
 mod idle_detection;

@@ -363,9 +363,20 @@ impl JsContextHost {
                     content_security_reporting_endpoints: refresh_policy_source
                         .map(|policy| policy.content_security_reporting_endpoints.clone())
                         .unwrap_or_default(),
-                    permissions_policy: refresh_policy_source
-                        .map(|policy| policy.permissions_policy)
-                        .unwrap_or_default(),
+                    permissions_policy: if is_new {
+                        // The synchronous initial about:blank Document is
+                        // already subject to the iframe's container policy.
+                        // Use its live inherited origin, not a pending target
+                        // navigation's origin, when applying the allowlist.
+                        self.child_browsing_context_permissions_policy_for_navigation(
+                            handle,
+                            &live_bootstrap,
+                        )
+                    } else {
+                        refresh_policy_source
+                            .map(|policy| policy.permissions_policy)
+                            .unwrap_or_default()
+                    },
                 };
                 let initial_empty_document_init: Option<ChildInitialEmptyDocumentInit> = is_new
                     .then(|| {
