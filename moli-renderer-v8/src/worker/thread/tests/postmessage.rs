@@ -1902,7 +1902,8 @@ async fn worker_performance_now_uses_readonly_monotonic_time_origin() {
             replaceable:
                 performance === replacement
                 && Object.prototype.hasOwnProperty.call(self, "performance"),
-            originalStillWorks: typeof original.now() === "number"
+            originalStillWorks: typeof original.now() === "number",
+            noLegacyMemory: !("memory" in original) && !("MemoryInfo" in self)
         });
         close();
         "#
@@ -1916,7 +1917,7 @@ async fn worker_performance_now_uses_readonly_monotonic_time_origin() {
         .expect("channel closed");
     assert_eq!(
         expect_post_json(msg),
-        r#"{"interfaceShape":true,"globalAccessor":true,"timeOriginAccessor":true,"unchanged":true,"numeric":true,"monotonic":true,"replaceable":true,"originalStillWorks":true}"#
+        r#"{"interfaceShape":true,"globalAccessor":true,"timeOriginAccessor":true,"unchanged":true,"numeric":true,"monotonic":true,"replaceable":true,"originalStillWorks":true,"noLegacyMemory":true}"#
     );
 }
 

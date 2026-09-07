@@ -203,6 +203,9 @@ struct PerformancePrototypeCommonAccessorsDeclaration {
 #[derive(Default, WebApiObject)]
 #[webapi(interface = "Performance", enumerable)]
 struct PerformancePrototypeWindowAccessorsDeclaration {
+    #[webapi(accessor_property, getter = super::memory::performance_memory_getter)]
+    memory: (),
+
     #[webapi(
         accessor_property,
         getter = performance_attribute_getter_callback,
