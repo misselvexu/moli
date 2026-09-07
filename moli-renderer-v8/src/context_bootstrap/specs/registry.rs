@@ -329,6 +329,11 @@ const CONSTRUCTOR_SPECS_BEFORE_STREAMS: &[ConstructorSpec] = &[
         kind: ConstructorKind::ClipboardEvent,
     },
     ConstructorSpec {
+        name: "ClipboardChangeEvent",
+        parent: Some("Event"),
+        kind: ConstructorKind::ClipboardChangeEvent,
+    },
+    ConstructorSpec {
         name: "KeyboardEvent",
         parent: Some("UIEvent"),
         kind: ConstructorKind::KeyboardEvent,

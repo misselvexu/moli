@@ -123,6 +123,9 @@ pub(in crate::context_bootstrap) fn build_constructor_template_for_profile<'s>(
         ConstructorKind::ClipboardEvent => {
             build_event_subclass_template(scope, EventSubclassKind::ClipboardEvent)
         }
+        ConstructorKind::ClipboardChangeEvent => {
+            build_event_subclass_template(scope, EventSubclassKind::ClipboardChangeEvent)
+        }
         ConstructorKind::ClipboardItem => {
             v8::FunctionTemplate::builder(clipboard_item_constructor_callback)
                 .length(1)
