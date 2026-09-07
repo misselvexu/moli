@@ -3146,7 +3146,6 @@ secure-contexts/basic-popup-and-iframe-tests.html
 selection/shadow-dom/tentative/Selection-getComposedRanges-range-update.html
 selection/toString-user-select-none.html
 service-workers/cache-storage/cache-keys-attributes-for-service-worker.https.html
-service-workers/cache-storage/credentials.https.html
 service-workers/cache-storage/sandboxed-iframes.https.html
 service-workers/service-worker/active.https.html
 service-workers/service-worker/add-routes.https.html

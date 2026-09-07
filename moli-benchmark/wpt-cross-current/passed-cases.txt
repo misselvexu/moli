@@ -7676,6 +7676,7 @@ selection/textcontrols/selectionchange.html
 selection/toString-ff-bug-001.html
 selection/type.html
 service-workers/cache-storage/cache-api-nested-worker.https.html
+service-workers/cache-storage/credentials.https.html
 service-workers/service-worker/Service-Worker-Allowed-header.https.html
 service-workers/service-worker/ServiceWorkerGlobalScope/isSecureContext.https.html
 service-workers/service-worker/ServiceWorkerGlobalScope/message-event-ports.https.html
