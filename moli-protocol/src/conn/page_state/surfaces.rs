@@ -437,6 +437,7 @@ impl BrowserContext {
                         Object.defineProperty(obj, key, {{ configurable: true, get: getter }});
                     }} catch (_error) {{}}
                 }};
+                const geolocationOverrideEnabled = {geolocation_override_enabled};
                 const geolocationOverride = {geolocation_override};
                 const navigatorOnline = {navigator_online};
                 const maxTouchPoints = {max_touch_points};
@@ -455,7 +456,10 @@ impl BrowserContext {
                     const geoState = globalThis.__moliGeolocationState || {{
                         nextWatchId: 1,
                         watchers: new Map(),
-                        object: null
+                        object: null,
+                        installed: false,
+                        nativeHadOwnProperty: false,
+                        nativeOwnDescriptor: null
                     }};
                     globalThis.__moliGeolocationState = geoState;
                     const previousOverrideKey = geoState.overrideKey || null;
@@ -547,12 +551,37 @@ impl BrowserContext {
                             }}
                         }};
                     }}
-                    if (previousOverrideKey !== null && previousOverrideKey !== geoState.overrideKey) {{
+                    if (geolocationOverrideEnabled && previousOverrideKey !== null && previousOverrideKey !== geoState.overrideKey) {{
                         for (const watcher of geoState.watchers.values()) {{
                             deliverGeolocation(watcher.success, watcher.error);
                         }}
                     }}
-                    defineGetter(navigator, 'geolocation', () => geoState.object);
+                    if (geolocationOverrideEnabled) {{
+                        if (!geoState.installed) {{
+                            geoState.nativeHadOwnProperty = Object.prototype.hasOwnProperty.call(
+                                navigator,
+                                'geolocation'
+                            );
+                            geoState.nativeOwnDescriptor = Object.getOwnPropertyDescriptor(
+                                navigator,
+                                'geolocation'
+                            ) || null;
+                        }}
+                        defineGetter(navigator, 'geolocation', () => geoState.object);
+                        geoState.installed = true;
+                    }} else if (geoState.installed) {{
+                        if (geoState.nativeHadOwnProperty && geoState.nativeOwnDescriptor) {{
+                            Object.defineProperty(
+                                navigator,
+                                'geolocation',
+                                geoState.nativeOwnDescriptor
+                            );
+                        }} else {{
+                            delete navigator.geolocation;
+                        }}
+                        geoState.installed = false;
+                        geoState.watchers.clear();
+                    }}
                 }} catch (_error) {{}}
                 defineGetter(navigator, 'onLine', () => currentNavigatorOnline());
                 defineGetter(navigator, 'maxTouchPoints', () => maxTouchPoints);
@@ -571,6 +600,7 @@ impl BrowserContext {
                     }} catch (_error) {{}}
                 }}
             }})();",
+            geolocation_override_enabled = geolocation_override.is_some(),
             geolocation_override = geolocation_override
                 .and_then(EmulatedGeolocationOverrideState::position)
                 .map(|position| {
