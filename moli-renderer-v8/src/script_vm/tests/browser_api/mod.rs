@@ -23,6 +23,7 @@ mod media;
 mod media_devices;
 mod misc;
 mod navigation;
+mod navigator_overrides;
 mod performance;
 mod performance_memory;
 mod pointer_lock;
