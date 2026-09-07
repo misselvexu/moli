@@ -61,7 +61,10 @@ use super::super::{
         build_audio_context_constructor_template, build_audio_worklet_node_constructor_template,
         offline_audio_context_constructor_callback,
     },
-    webrtc::{rtc_ice_candidate_constructor_callback, rtc_peer_connection_constructor_callback},
+    webrtc::{
+        rtc_ice_candidate_constructor_callback, rtc_peer_connection_constructor_callback,
+        rtc_session_description_constructor_callback,
+    },
     websocket::{
         websocket_constructor_callback, websocket_error_constructor_callback,
         websocket_stream_constructor_callback,
@@ -472,6 +475,11 @@ pub(in crate::context_bootstrap) fn build_constructor_template_for_profile<'s>(
         ConstructorKind::RtcIceCandidate => {
             v8::FunctionTemplate::builder(rtc_ice_candidate_constructor_callback)
                 .length(0)
+                .build(scope)
+        }
+        ConstructorKind::RtcSessionDescription => {
+            v8::FunctionTemplate::builder(rtc_session_description_constructor_callback)
+                .length(1)
                 .build(scope)
         }
         ConstructorKind::Navigator
