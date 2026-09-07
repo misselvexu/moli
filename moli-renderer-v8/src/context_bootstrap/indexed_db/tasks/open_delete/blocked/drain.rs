@@ -8,6 +8,7 @@ pub(in crate::context_bootstrap::indexed_db) fn flush_drain_blocked_open_request
         return;
     };
     let next = v8::Array::new(scope, 0);
+    let mut blocked_keys = std::collections::HashSet::new();
     for index in 0..queue.length() {
         let Some(value) = queue.get_index(scope, index) else {
             continue;
@@ -17,7 +18,13 @@ pub(in crate::context_bootstrap::indexed_db) fn flush_drain_blocked_open_request
         };
         let database_key = indexed_db_blocked_task_payload(scope, task)
             .map(|payload| database_registry_key(&payload.origin, &payload.name));
-        if !try_execute_unblocked_request(scope, task) {
+        let waiting_for_older = database_key
+            .as_ref()
+            .is_some_and(|key| blocked_keys.contains(key));
+        if waiting_for_older || !try_execute_unblocked_request(scope, task) {
+            if let Some(key) = database_key {
+                blocked_keys.insert(key);
+            }
             let _ = next.set_index(scope, next.length(), task.into());
         } else {
             if let Some(database_key) = database_key.as_deref() {
@@ -52,7 +59,29 @@ fn try_execute_unblocked_request_in_owner_scope<'s>(
     };
     let key = database_registry_key(&payload.origin, &payload.name);
     if has_open_database_connections_for_key(scope, &key) {
-        return false;
+        if !object_bool_property(
+            scope,
+            payload.request,
+            INDEXED_DB_REQUEST_BLOCKED_DISPATCHED_SLOT,
+        )
+        .unwrap_or(false)
+        {
+            dispatch_version_change_to_open_connections(
+                scope,
+                &key,
+                payload.old_version,
+                payload.new_version,
+            );
+        }
+        if has_open_database_connections_for_key(scope, &key) {
+            event::dispatch_blocked_once(
+                scope,
+                payload.request,
+                payload.old_version,
+                payload.new_version,
+            );
+            return false;
+        }
     }
     let Some(kind) = indexed_db_typed_task_kind(scope, task) else {
         return false;

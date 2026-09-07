@@ -22,6 +22,7 @@ fn schedule_open(page_vm: &mut PageVm, database_name: &str, marker: &str) {
   const request = indexedDB.open({database_name:?}, 1);
   request.onupgradeneeded = () => {{
     globalThis[{marker:?}].push("upgrade");
+    Promise.resolve().then(() => globalThis[{marker:?}].push("upgrade-microtask"));
   }};
   request.onerror = () => {{
     globalThis[{marker:?}].push(`error:${{request.error && request.error.name}}`);
@@ -53,7 +54,10 @@ fn schedule_child_open(
 (() => {{
   globalThis[{marker:?}] = [];
   const request = indexedDB.open({database_name:?}, 1);
-  request.onupgradeneeded = () => globalThis[{marker:?}].push("upgrade");
+  request.onupgradeneeded = () => {{
+    globalThis[{marker:?}].push("upgrade");
+    Promise.resolve().then(() => globalThis[{marker:?}].push("upgrade-microtask"));
+  }};
   request.onerror = () => {{
     globalThis[{marker:?}].push(`error:${{request.error && request.error.name}}`);
   }};
@@ -112,6 +116,30 @@ async fn run_selected_indexed_db_task_for_test(
     Ok(Some(IndexedDbSelectedTaskObservation { owner, kind }))
 }
 
+/// Set up an open-success task without treating upgrade/commit/success as one
+/// task. The upgrade's complete listener is the boundary, not a queue length
+/// or a timed wait. The caller still executes and checks exactly one task.
+async fn complete_fixture_upgrade_before_open_success(
+    page_vm: &mut PageVm,
+    loader: &crate::network::ResourceRequestClient,
+) -> anyhow::Result<()> {
+    for _ in 0..16 {
+        if page_vm
+            .vm_mut()
+            .eval_without_microtask_checkpoint_for_test(
+                "globalThis.__indexedDbFixtureUpgradeComplete === true",
+            )?
+            == "true"
+        {
+            return Ok(());
+        }
+        run_selected_indexed_db_task_for_test(page_vm, loader)
+            .await?
+            .expect("upgrade must retain a ready IndexedDB task until complete");
+    }
+    anyhow::bail!("fixture upgrade did not complete within 16 selected IndexedDB tasks")
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn indexed_db_task_body_leaves_reactions_and_transaction_deactivation_for_selected_completion()
  {
@@ -131,6 +159,7 @@ async fn indexed_db_task_body_leaves_reactions_and_transaction_deactivation_for_
   open.onupgradeneeded = () => {
     open.result.createObjectStore("kv").put("value", 1);
     __indexedDbTaskBodyBoundary.push("upgrade");
+    open.transaction.oncomplete = () => globalThis.__indexedDbFixtureUpgradeComplete = true;
   };
   open.onsuccess = () => {
     __indexedDbTaskBodyBoundary.push("success");
@@ -149,6 +178,7 @@ async fn indexed_db_task_body_leaves_reactions_and_transaction_deactivation_for_
 })()
 "#,
         )?;
+        complete_fixture_upgrade_before_open_success(&mut page_vm, &loader).await?;
         page_vm
             .vm_mut()
             .enqueue_test_ready_runtime_script_followup();
@@ -285,7 +315,10 @@ async fn indexed_db_selected_callback_completion_reconciles_a_created_child() {
             r#"
 (() => {
   const open = indexedDB.open("selected-child-follow-up", 1);
-  open.onupgradeneeded = () => open.result.createObjectStore("kv");
+  open.onupgradeneeded = () => {
+    open.result.createObjectStore("kv");
+    open.transaction.oncomplete = () => globalThis.__indexedDbFixtureUpgradeComplete = true;
+  };
   open.onsuccess = () => {
     const frame = document.createElement("iframe");
     frame.id = "indexed-db-selected-child";
@@ -297,7 +330,11 @@ async fn indexed_db_selected_callback_completion_reconciles_a_created_child() {
 })()
 "#,
         )?;
-
+        complete_fixture_upgrade_before_open_success(&mut page_vm, &loader).await?;
+        assert!(
+            !page_vm.vm().has_pending_child_navigation_commit_for_test(),
+            "upgrade completion must not execute the open-success listener"
+        );
         assert!(
             run_selected_indexed_db_task_for_test(&mut page_vm, &loader)
                 .await?
@@ -338,8 +375,27 @@ async fn indexed_db_task_applies_real_producer_work_and_one_microtask_checkpoint
             page_vm
                 .vm_mut()
                 .eval("globalThis.__indexedDbOwnerTurn.join('|')")?,
-            "upgrade|success|microtask",
+            "upgrade|upgrade-microtask",
             "one authorized IDB turn must include its host-task microtask checkpoint"
+        );
+        run_selected_indexed_db_task_for_test(&mut page_vm, &loader)
+            .await?
+            .expect("upgrade commit should consume a separate turn");
+        assert_eq!(
+            page_vm
+                .vm_mut()
+                .eval("globalThis.__indexedDbOwnerTurn.join('|')")?,
+            "upgrade|upgrade-microtask",
+            "commit must not dispatch open success in its own task"
+        );
+        run_selected_indexed_db_task_for_test(&mut page_vm, &loader)
+            .await?
+            .expect("open success should consume a separate turn");
+        assert_eq!(
+            page_vm
+                .vm_mut()
+                .eval("globalThis.__indexedDbOwnerTurn.join('|')")?,
+            "upgrade|upgrade-microtask|success|microtask"
         );
         Ok::<_, anyhow::Error>(())
     })
@@ -368,7 +424,7 @@ async fn indexed_db_source_consumes_exactly_one_runtime_task_per_turn() {
             page_vm
                 .vm_mut()
                 .eval("JSON.stringify([__firstIndexedDbTurn, __secondIndexedDbTurn])")?,
-            r#"[["upgrade","success","microtask"],[]]"#
+            r#"[["upgrade","upgrade-microtask"],[]]"#
         );
 
         let second = run_selected_indexed_db_task_for_test(&mut page_vm, &loader)
@@ -381,7 +437,7 @@ async fn indexed_db_source_consumes_exactly_one_runtime_task_per_turn() {
             page_vm
                 .vm_mut()
                 .eval("JSON.stringify([__firstIndexedDbTurn, __secondIndexedDbTurn])")?,
-            r#"[["upgrade","success","microtask"],["upgrade","success","microtask"]]"#
+            r#"[["upgrade","upgrade-microtask"],["upgrade","upgrade-microtask"]]"#
         );
         Ok::<_, anyhow::Error>(())
     })
@@ -413,7 +469,7 @@ async fn indexed_db_task_survives_document_open_in_the_same_window_realm() {
             page_vm
                 .vm_mut()
                 .eval("globalThis.__documentOpenIndexedDbTurn.join('|')")?,
-            "upgrade|success|microtask",
+            "upgrade|upgrade-microtask",
             "document.open() must not retire work owned by its preserved Window realm"
         );
         Ok::<_, anyhow::Error>(())
@@ -523,7 +579,7 @@ async fn indexed_db_rejects_a_replaced_child_realm_without_stealing_its_task() {
                 current_execution_context_id,
                 "globalThis.__replacementRealmIndexedDbTurn.join('|')",
             )?,
-            "upgrade|success|microtask",
+            "upgrade|upgrade-microtask",
             "the central Agent checkpoint must drain reactions queued by the exact child realm"
         );
         Ok::<_, anyhow::Error>(())
@@ -620,7 +676,7 @@ fn indexed_db_rejects_a_real_page_vm_replacement_identity_collision() {
                         page_vm
                             .vm_mut()
                             .eval("globalThis.__replacementIndexedDbTurn.join('|')")?,
-                        "upgrade|success|microtask"
+                        "upgrade|upgrade-microtask"
                     );
                     Ok::<_, anyhow::Error>(())
                 })

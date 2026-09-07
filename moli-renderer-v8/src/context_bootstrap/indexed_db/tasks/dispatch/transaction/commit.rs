@@ -64,6 +64,7 @@ fn finish_committed_transaction<'s>(
         let _ = refresh_database_surface(scope, db);
     }
     let _ = dispatch_idb_named_event(scope, transaction, "complete", |_, _| {});
+    finish_upgrade_open(scope, transaction, true);
     release_indexed_db_transaction_dispatch_refs(scope, transaction);
 }
 
@@ -73,6 +74,7 @@ fn finish_failed_commit<'s>(
 ) {
     finish_transaction(scope, transaction);
     let _ = dispatch_idb_named_event(scope, transaction, "error", |_, _| {});
+    finish_upgrade_open(scope, transaction, false);
     release_indexed_db_transaction_dispatch_refs(scope, transaction);
 }
 

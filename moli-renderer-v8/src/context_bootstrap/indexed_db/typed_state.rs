@@ -364,6 +364,10 @@ struct IndexedDbTransactionLifecycleState {
     deactivation_scheduled: bool,
     operations_waiting_for_start: Vec<IndexedDbPendingTransactionOperation>,
     db_key: Option<String>,
+    // An upgrade open is a continuation of the versionchange transaction,
+    // not of the upgradeneeded event. Keep exact request/database identities
+    // until all request callbacks (including their microtasks) have drained.
+    upgrade_open: Option<(v8::Global<v8::Object>, v8::Global<v8::Object>)>,
 }
 
 impl IndexedDbTransactionLifecycleState {
@@ -381,6 +385,7 @@ impl IndexedDbTransactionLifecycleState {
             deactivation_scheduled: false,
             operations_waiting_for_start: Vec::new(),
             db_key,
+            upgrade_open: None,
         }
     }
 }
@@ -697,6 +702,45 @@ pub(super) fn register_indexed_db_transaction_lifecycle<'s>(
     table.borrow_mut().transactions.insert(id, state);
 }
 
+pub(in crate::context_bootstrap::indexed_db) fn bind_indexed_db_upgrade_open<'s>(
+    scope: &mut v8::PinScope<'s, '_>,
+    transaction: v8::Local<'s, v8::Object>,
+    request: v8::Local<'s, v8::Object>,
+    database: v8::Local<'s, v8::Object>,
+) {
+    let id = indexed_db_typed_state_id(scope, transaction)
+        .expect("upgrade transaction must have typed state");
+    let table = indexed_db_runtime_state_table_for_object(scope, transaction);
+    let mut table = table.borrow_mut();
+    let state = table
+        .transactions
+        .get_mut(&id)
+        .expect("upgrade transaction must have lifecycle state");
+    debug_assert!(state.upgrade_open.is_none());
+    state.upgrade_open = Some((
+        v8::Global::new(scope, request),
+        v8::Global::new(scope, database),
+    ));
+}
+
+pub(in crate::context_bootstrap::indexed_db) fn take_indexed_db_upgrade_open<'s>(
+    scope: &mut v8::PinScope<'s, '_>,
+    transaction: v8::Local<'s, v8::Object>,
+) -> Option<(v8::Local<'s, v8::Object>, v8::Local<'s, v8::Object>)> {
+    let id = indexed_db_typed_state_id(scope, transaction)?;
+    let table = indexed_db_runtime_state_table_for_object(scope, transaction);
+    let (request, database) = table
+        .borrow_mut()
+        .transactions
+        .get_mut(&id)?
+        .upgrade_open
+        .take()?;
+    Some((
+        v8::Local::new(scope, &request),
+        v8::Local::new(scope, &database),
+    ))
+}
+
 pub(in crate::context_bootstrap::indexed_db) fn schedule_indexed_db_transaction_deactivation_after_microtask_checkpoint<
     's,
 >(
@@ -761,6 +805,7 @@ pub(super) fn release_indexed_db_transaction_dispatch_refs<'s>(
         return;
     };
     transaction.operations_waiting_for_start.clear();
+    transaction.upgrade_open = None;
 }
 
 pub(super) fn push_indexed_db_operation_waiting_for_start<'s>(

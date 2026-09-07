@@ -165,6 +165,18 @@ Offscreen canvases: viewport initialization, setter/conversion errors, copied
 Int32Array queries, context isolation, context reacquisition, resize retention,
 and clamping to the advertised maximum. It is not a GPU rendering test.
 
+The Chromium-calibrated `svg-indexeddb-startup` group covers real detached
+SVGRect values and the JSXGraph-style `createSVGRect` feature check, then
+drives IndexedDB through asynchronous versionchange requests,
+request-callback/microtask schema migration, commit, reopen, abort rollback
+and FIFO deletion across upgrade/open-success callbacks. Its application
+fixture deliberately contains hidden error messages from the beginning;
+success requires completed database work and the ready panel, not a large
+text dump. This distinction comes from the live sketchometry investigation:
+the IndexedDB factory was present, while a missing SVG feature-detection
+method and prematurely completed upgrade transactions prevented startup.
+Each smoke group gets its own Moli process.
+
 Covered well:
 
 - The default raw `debugger-breakpoints`, `runtime-exception`, and

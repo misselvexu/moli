@@ -51,8 +51,9 @@ fn flush_indexed_db_task<'s>(
         IndexedDbTaskKind::RequestSuccess => flush_request_success_task(scope, task),
         IndexedDbTaskKind::RequestError => flush_request_error_task(scope, task),
         IndexedDbTaskKind::Open => flush_open_task(scope, task),
-        IndexedDbTaskKind::OpenBlocked => flush_open_blocked_task(scope, task),
-        IndexedDbTaskKind::DeleteBlocked => flush_delete_blocked_task(scope, task),
+        IndexedDbTaskKind::OpenBlocked | IndexedDbTaskKind::DeleteBlocked => {
+            flush_blocked_request_task(scope, task)
+        }
         IndexedDbTaskKind::DrainBlockedOpens => flush_drain_blocked_open_requests_task(scope),
         IndexedDbTaskKind::DatabasesSettle => flush_databases_settle_task(scope, task),
         IndexedDbTaskKind::TransactionStart => flush_transaction_start_task(scope, task),

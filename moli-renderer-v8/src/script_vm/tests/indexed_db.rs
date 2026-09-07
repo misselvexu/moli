@@ -2,6 +2,36 @@ use super::*;
 use moli_url::origin_ascii_serialization;
 
 #[test]
+fn indexed_db_upgrade_waits_for_requests_and_microtasks_before_open_success() {
+    let mut vm = new_storage_page_task_executor_test_vm("https://indexeddb-upgrade-drain.test/");
+    vm.eval(&format!(
+        "globalThis.__upgradeDrain = 'pending';\n({}).then(\
+         value => globalThis.__upgradeDrain = JSON.stringify(value), \
+         error => globalThis.__upgradeDrain = error.name + ': ' + error.message);",
+        include_str!("../../../tests/fixtures/indexeddb-upgrade.js")
+    ))
+    .expect("upgrade regression should schedule");
+    let result = vm
+        .eval_after_selected_page_tasks("globalThis.__upgradeDrain")
+        .expect("upgrade regression should finish");
+    let result: serde_json::Value = serde_json::from_str(&result)
+        .unwrap_or_else(|error| panic!("upgrade did not finish correctly: {result}: {error}"));
+    assert_eq!(
+        result,
+        serde_json::json!({
+            "trace": ["upgrade:done", "seed", "read:original", "request-microtask",
+                      "migration-write", "microtask-write", "complete", "complete-microtask", "open-success"],
+            "transactionCleared": true,
+            "records": [{"id": 1, "text": "original"}, {"id": 2, "text": "microtask write"}],
+            "microtaskValue": "value",
+            "abortTrace": ["request-success", "abort", "open-error:AbortError"],
+            "rollback": {"oldVersion": 0, "stores": []},
+            "closedResult": "AbortError"
+        })
+    );
+}
+
+#[test]
 fn indexed_db_runtime_state_is_created_on_first_use_without_window_slots() {
     let mut vm = new_storage_page_task_executor_test_vm("https://indexeddb-lazy-runtime.test/");
 
