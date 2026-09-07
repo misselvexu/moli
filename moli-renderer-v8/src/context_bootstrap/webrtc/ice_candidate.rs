@@ -201,6 +201,13 @@ fn parse_candidate_init<'s>(
     Some(values)
 }
 
+pub(super) fn ice_candidate_receiver_branded<'s>(
+    scope: &mut v8::PinScope<'s, '_>,
+    receiver: v8::Local<'s, v8::Object>,
+) -> bool {
+    get_private_value(scope, receiver, CANDIDATE_VALUES_SLOT).is_some_and(|value| value.is_array())
+}
+
 fn candidate_values<'s>(
     scope: &mut v8::PinScope<'s, '_>,
     receiver: v8::Local<'s, v8::Object>,

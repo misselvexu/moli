@@ -1102,6 +1102,16 @@ const CONSTRUCTOR_SPECS_AFTER_STREAMS: &[ConstructorSpec] = &[
         kind: ConstructorKind::RtcSessionDescription,
     },
     ConstructorSpec {
+        name: "RTCPeerConnectionIceEvent",
+        parent: Some("Event"),
+        kind: ConstructorKind::RtcPeerConnectionIceEvent,
+    },
+    ConstructorSpec {
+        name: "RTCDataChannelEvent",
+        parent: Some("Event"),
+        kind: ConstructorKind::RtcDataChannelEvent,
+    },
+    ConstructorSpec {
         name: "RTCRtpReceiver",
         parent: None,
         kind: ConstructorKind::Illegal,
