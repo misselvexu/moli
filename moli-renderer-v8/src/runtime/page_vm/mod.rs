@@ -3971,6 +3971,7 @@ impl PageVm {
         }
 
         Ok(PageVmStateCapture {
+            document_lifecycle: self.document_lifecycle.observe(),
             final_url,
             document_title,
             report,
