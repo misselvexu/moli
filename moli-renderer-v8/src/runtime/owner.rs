@@ -1279,8 +1279,7 @@ impl RendererOwnerHandle {
                 ))
             })
             .await?;
-        let finalized =
-            commit.publish_then_finalize(|output| self.publish_renderer_output(output))?;
+        let finalized = commit.publish_then_finalize()?;
         if finalized.resume_parked_page_turn {
             self.signal_internal_page_turn_source(
                 token,
@@ -1648,8 +1647,7 @@ impl RendererOwnerHandle {
             Ok(resolution) => resolution,
             Err(error) => return self.retire_failed_page_creation(token, error).await,
         };
-        let (resolution, retire_page_after_publication) =
-            resolution.publish_then_resolve(|output| self.publish_renderer_output(output));
+        let (resolution, retire_page_after_publication) = resolution.publish_then_resolve();
         match resolution {
             PageCreationResolution::Finalized {
                 attached,
@@ -1907,16 +1905,6 @@ impl RendererOwnerHandle {
         self.state
             .browser_context_runtime
             .set_renderer_output_transport_sender(sender);
-    }
-
-    fn publish_renderer_output(&self, output: RendererOutputPublication) {
-        if let Some(sender) = self
-            .state
-            .browser_context_runtime
-            .renderer_output_transport_sender()
-        {
-            let _ = output.publish_to(&sender);
-        }
     }
 
     /// Completes the protocol-side owner reservation after renderer bootstrap
@@ -3330,7 +3318,7 @@ impl RendererOwnerHandle {
         let output = entry.page_vm_mut().settle_renderer_output_publication();
         restore_entry_after_command_on_bound_owner_local_store(token, entry);
         if let Some(output) = output {
-            self.publish_renderer_output(output);
+            output.publish();
         }
     }
 
@@ -4156,7 +4144,7 @@ impl RendererOwnerHandle {
                     displaced_ordinary.requires_reconsideration(),
                 );
                 if let Some(output) = output {
-                    self.publish_renderer_output(output);
+                    output.publish();
                 }
                 if displaced_ordinary.requires_reconsideration() {
                     self.signal_internal_page_turn_source(
@@ -4207,7 +4195,7 @@ impl RendererOwnerHandle {
                         .map(|output| output.with_ordering(output_ordering));
                     self.restore_live_page_entry(token, entry);
                     if let Some(output) = concrete_output {
-                        self.publish_renderer_output(output);
+                        output.publish();
                     }
                     return RenderRuntimeDispatchOutcome::BackgroundComplete(Err(error));
                 }
@@ -4225,7 +4213,7 @@ impl RendererOwnerHandle {
             should_resume_ordinary,
         );
         if let Some(output) = concrete_output {
-            self.publish_renderer_output(output);
+            output.publish();
         }
 
         match readiness {
@@ -4297,7 +4285,7 @@ impl RendererOwnerHandle {
                 .map(|output| output.with_ordering(output_ordering));
             restore_entry_after_command_on_bound_owner_local_store(token, entry);
             if let Some(output) = concrete_output {
-                self.publish_renderer_output(output);
+                output.publish();
             }
             return RenderRuntimeDispatchOutcome::PageTurnComplete {
                 result: Err(error),
@@ -4310,7 +4298,7 @@ impl RendererOwnerHandle {
             .map(|output| output.with_ordering(output_ordering));
         restore_entry_after_command_on_bound_owner_local_store(token, entry);
         if let Some(output) = concrete_output {
-            self.publish_renderer_output(output);
+            output.publish();
         }
 
         let readiness = page_turn_readiness_after_restore_on_bound_owner_local_store(token);
@@ -4419,7 +4407,7 @@ impl RendererOwnerHandle {
                 .map(|output| output.with_ordering(output_ordering));
             self.restore_live_page_entry(token, entry);
             if let Some(output) = output {
-                self.publish_renderer_output(output);
+                output.publish();
             }
             let readiness = page_turn_readiness_after_restore_on_bound_owner_local_store(token);
             let next_turn = readiness
@@ -4767,15 +4755,13 @@ impl RendererOwnerHandle {
                 );
                 Some(expected)
             }
-            None => concrete_output
-                .as_ref()
-                .map(RendererOutputPublication::cursor),
+            None => concrete_output.as_ref().map(RendererSettledOutput::cursor),
         };
         let renderer_output_predecessor = renderer_output_cursor
             .map(|cursor| entry.page_vm().declare_renderer_output_fence(cursor));
         self.restore_live_page_entry(token, entry);
         if let Some(output) = concrete_output {
-            self.publish_renderer_output(output);
+            output.publish();
         }
         let completion = match page_state_result {
             Ok(page_state) => match RendererCommandTurnOutput::new(

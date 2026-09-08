@@ -6660,7 +6660,7 @@ impl ScriptVm {
 
     pub(super) fn settle_renderer_output_publication(
         &mut self,
-    ) -> Option<crate::runtime::RendererOutputPublication> {
+    ) -> Option<crate::runtime::RendererSettledOutput> {
         self.page_inspector
             .devtools_target()
             .pause_ref()
@@ -6690,7 +6690,10 @@ impl ScriptVm {
                 }
             });
         }
-        Some(pending.finish())
+        Some(crate::runtime::RendererSettledOutput::new(
+            output_journal,
+            pending.finish(),
+        ))
     }
 
     pub(super) fn append_renderer_output_records(
