@@ -1523,3 +1523,4 @@ mod lifecycle;
 mod modules;
 mod network;
 mod postmessage;
+mod trusted_types_reporting;
