@@ -931,6 +931,7 @@ async fn dialog_disable_and_exact_detach_dismiss_only_their_browser_dialogs() {
     assert!(!primary_completion.wait().accepted);
     assert!(
         owner
+            .browser_context
             .web_contents_has_pending_javascript_dialog(document_handle.web_contents())
             .unwrap()
     );
@@ -958,6 +959,7 @@ async fn dialog_disable_and_exact_detach_dismiss_only_their_browser_dialogs() {
     assert!(!peer_completion.wait().accepted);
     assert!(
         !owner
+            .browser_context
             .web_contents_has_pending_javascript_dialog(document_handle.web_contents())
             .unwrap()
     );
@@ -989,7 +991,9 @@ async fn document_policy_completion_rejects_replacement_document() {
     let replacement = owner.document_handle_for_target(TARGET).unwrap();
     assert_ne!(replacement, document);
     assert_eq!(
-        owner.finish_document_policy_update(completed),
+        owner
+            .browser_context
+            .finish_document_policy_update(completed),
         Err("Document changed".to_owned())
     );
     assert_eq!(owner.document_handle_for_target(TARGET), Some(replacement));
