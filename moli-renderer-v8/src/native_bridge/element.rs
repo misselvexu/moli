@@ -2545,11 +2545,7 @@ fn anchor_search_getter_function<'s>(
         scope,
         args.this(),
         "",
-        |url| {
-            url.query()
-                .map(|query| format!("?{query}"))
-                .unwrap_or_default()
-        },
+        |url| url::quirks::search(url).to_owned(),
         rv,
     );
 }
@@ -2570,11 +2566,7 @@ fn anchor_search_setter_function<'s>(
     let Some(value) = property_string_value(scope, args.get(0)) else {
         return;
     };
-    if value.is_empty() {
-        url.set_query(None);
-    } else {
-        url.set_query(Some(value.trim_start_matches('?')));
-    }
+    url::quirks::set_search(&mut url, &value);
     set_resolved_url_attribute(scope, runtime_ptr, handle, "href", &url);
     rv.set_undefined();
 }
@@ -2588,11 +2580,7 @@ fn anchor_hash_getter_function<'s>(
         scope,
         args.this(),
         "",
-        |url| {
-            url.fragment()
-                .map(|fragment| format!("#{fragment}"))
-                .unwrap_or_default()
-        },
+        |url| url::quirks::hash(url).to_owned(),
         rv,
     );
 }
@@ -2613,11 +2601,7 @@ fn anchor_hash_setter_function<'s>(
     let Some(value) = property_string_value(scope, args.get(0)) else {
         return;
     };
-    if value.is_empty() {
-        url.set_fragment(None);
-    } else {
-        url.set_fragment(Some(value.trim_start_matches('#')));
-    }
+    url::quirks::set_hash(&mut url, &value);
     set_resolved_url_attribute(scope, runtime_ptr, handle, "href", &url);
     rv.set_undefined();
 }

@@ -254,7 +254,7 @@ fn url_attribute_getter<'s>(
         }
         UrlAttribute::Search => {
             let search = url_object_value(scope, this)
-                .and_then(|url| url.query().map(|query| format!("?{query}")))
+                .map(|url| url::quirks::search(&url).to_owned())
                 .unwrap_or_default();
             set_return_string(scope, rv, &search);
         }
@@ -265,7 +265,7 @@ fn url_attribute_getter<'s>(
         }
         UrlAttribute::Hash => {
             let hash = url_object_value(scope, this)
-                .and_then(|url| url.fragment().map(|fragment| format!("#{fragment}")))
+                .map(|url| url::quirks::hash(&url).to_owned())
                 .unwrap_or_default();
             set_return_string(scope, rv, &hash);
         }
@@ -443,11 +443,7 @@ fn url_writable_attribute_setter_callback<'s>(
             if let Some(mut url) = url_object_value(scope, this)
                 && let Some(search) = url_attribute_usv_string(scope, args.get(0), attribute)
             {
-                if search.is_empty() {
-                    url.set_query(None);
-                } else {
-                    url.set_query(Some(search.trim_start_matches('?')));
-                }
+                url::quirks::set_search(&mut url, &search);
                 apply_url_update(scope, this, &url);
             }
         }
@@ -455,11 +451,7 @@ fn url_writable_attribute_setter_callback<'s>(
             if let Some(mut url) = url_object_value(scope, this)
                 && let Some(hash) = url_attribute_usv_string(scope, args.get(0), attribute)
             {
-                if hash.is_empty() {
-                    url.set_fragment(None);
-                } else {
-                    url.set_fragment(Some(hash.trim_start_matches('#')));
-                }
+                url::quirks::set_hash(&mut url, &hash);
                 apply_url_update(scope, this, &url);
             }
         }
